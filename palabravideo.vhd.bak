@@ -1,0 +1,69 @@
+library ieee;
+	use ieee.std_logic_1164.all;
+	use ieee.numeric_std.all;
+
+entity palabraprueba is
+	generic (
+      BITSCFAR: natural := 19 --Cantidad de bits del CFAR en la palabra
+		);
+	port(
+		-- entradas
+		clk, rst                : in std_logic;                      --Entrada del clock y reset del sistema
+		in_video                : in unsigned (13 downto 0);
+		in_rdy                  : in std_logic;                      --La salida del CFAR es válida
+		HM, BI, TRG             : in std_logic;                      --Entrada de señales de sincronismo de radar
+		-- salidas
+		HM_sal,BI_sal,TRG_sal   : out std_logic;
+        out_palabra             : out std_logic_vector(31 downto 0); --Palabra de 32 bits a ser transmitida por Ethernet
+		out_rdy                 : out std_logic
+		);
+end palabraprueba;
+
+
+architecture ar_palabra of palabraprueba is
+
+    signal s_palabra  : std_logic_vector(31 downto 0);
+    signal s_out_rdy : std_logic;
+    signal contador: unsigned (4 downto 0); --cuenta hasta BITSCFAR-1 para formar una palabra con los bits entrantes
+     
+begin
+    
+	process(clk,rst)
+	
+	begin
+		if (rst = '1') then --reset
+         s_palabra  <= (others => '0');
+         s_out_rdy <= '0';
+         contador<= (others => '0');
+         TRG_sal <= '0';
+         BI_sal <= '0';
+         HM_sal <= '0';
+
+		elsif( clk'event and clk = '1' ) then 
+			if(s_out_rdy = '1') then     --pulso que va al write de la memoria
+                s_out_rdy <= '0';   --Para que no escriba mas de una vez
+            end if;   
+			if(contador = "10000") then
+				contador <= (others => '0');
+                s_out_rdy <= '1';
+                s_palabra <= std_logic_vector("000000000000000000") & std_logic_vector(in_video);    
+            else
+				contador <= contador + 1;
+			end if;
+            
+            if (TRG='1') then
+				TRG_sal<='1';
+            if (BI='1') then
+				BI_sal<='1';
+            if (HM='1') then
+				HM_sal<='1';
+			
+            end if;
+            
+      end if;
+	end process;
+	
+   out_rdy 	<= s_out_rdy;
+   out_palabra <= s_palabra;
+	
+end ar_palabra;
